@@ -1,0 +1,38 @@
+--- extract_orig/modules/UrlbarController.jsm   2010-01-01 00:00:00.000000000 -0800
++++ extract/modules/UrlbarController.jsm        2020-07-22 16:36:20.000000000 -0700
+@@ -337,6 +337,35 @@
+           event.preventDefault();
+         }
+         break;
++      case KeyEvent.DOM_VK_N:
++      case KeyEvent.DOM_VK_P:
++        if(event.ctrlKey && !event.altKey && !event.shiftKey) {
++            if (this.view.isOpen) {
++                if (executeAction) {
++                    //this.userSelectionBehavior = "emacs";
++                    this.view.selectBy(
++                            1,
++                        {
++                            reverse:
++                            event.keyCode == KeyEvent.DOM_VK_P,
++                        }
++                    );
++                }
++            } else {
++                if (this.keyEventMovesCaret(event)) {
++                    break;
++                }
++                if (executeAction) {
++                    //this.userSelectionBehavior = "emacs";
++                    this.input.startQuery({
++                        searchString: this.input.value,
++                        event,
++                    });
++                }
++            }
++            event.preventDefault();
++        }
++        break;
+       case KeyEvent.DOM_VK_DOWN:
+       case KeyEvent.DOM_VK_UP:
+       case KeyEvent.DOM_VK_PAGE_DOWN:

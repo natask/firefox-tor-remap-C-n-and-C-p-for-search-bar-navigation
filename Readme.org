@@ -1,0 +1,504 @@
+#+TITLE: firefox and tor remap C-n and C-p like emacs
+post on [[https://www.reddit.com/r/emacs/comments/iefqu2/remapping_ctrln_and_ctrlp_for_searchbar/][reddit]].
+* Table of content
+:PROPERTIES:
+:TOC:      :include all
+:END:
+:CONTENTS:
+- [[#table-of-content][Table of content]]
+- [[#firefox][Firefox]]
+  - [[#remapping-ctrl-n-and-ctrl-p-for-searchbar-navigation-on-firefox][remapping Ctrl-n and Ctrl-p for searchbar navigation on firefox]]
+    - [[#disable-opening-new-window-and-printing][Disable opening new window and printing]]
+    - [[#enable-going-up-and-down-inside-searchbar][Enable going up and down inside searchbar]]
+    - [[#script][script]]
+  - [[#path-of-main-setting][path of main setting]]
+  - [[#remap-the-n-in-c-n][remap the n in C-n]]
+  - [[#remap-the-p-in-c-p][remap the p in C-p]]
+  - [[#patches][patches]]
+    - [[#disable-opening-new-window-and-printing][disable opening new window and printing]]
+    - [[#enable-going-up-and-down][enable going up and down]]
+  - [[#more-modifications][more modifications]]
+  - [[#improvments][improvments]]
+  - [[#alternative][alternative]]
+- [[#tor][Tor]]
+  - [[#setup][setup]]
+  - [[#browser-xul-to-unmap-c-n-and-c-p-map-them-to-m-n-and-m-p][browser xul to unmap C-n and C-p (map them to M-n and M-p)]]
+  - [[#implement-c-n-and-c-p][implement C-n and C-p]]
+  - [[#startupcache][startupCache]]
+  - [[#emacs-like-c-a-and-c-e-in-tor][emacs like C-a and C-e in tor]]
+:END:
+* Firefox
+:PROPERTIES:
+:ID:       f82cd4db-bf8c-4593-979a-68a9a137a532
+:END:
+:RESOURCES:
+:END:
+:LOGBOOK:
+- Newly Created           [2020-08-23 Sun 06:07:37]
+:END:
+** remapping Ctrl-n and Ctrl-p for searchbar navigation on firefox
+Thanks to [[https://github.com/nilcons/firefox-hacks][nilcons]] of github for maintaining a repo with pointers to modifying internals to customize keybindings.
+
+I am prefer to use ctrl-n and ctrl-p in search results (helm and rofi). I wanted the same for firefox. Unfortunately, Firefox unlike chromium doesn't support ctrl-n and ctrl-p on search results out of the box. luckily, firefox has a mechanism to modify internal files.
+
+Citing [[https://github.com/nilcons/firefox-hacks][nilcons]], firefox places keybindings within =/usr/lib/firefox-developer-edition/browser/omni.ja= or =/usr/lib/firefox/browser/omni.ja= depending on the type of firefox you are using. This compressed file can be unpacked, edited and repacked to modify keybindings among other interactive features of firefox. 
+
+The first thing I wanted to do was disable opening new windows on ctrl-n. And while I was at it disable ctrl-p. I found that these are set within =chrome/browser/content/browser/browser.xhtml=. I changed their default modifier from accel (which can be set globally in =about:config=) to alt. the key (N or P) for these can be modified within =localization/en-US/browser/browserSets.ftl -> window-new-shortcut= and =localization/en-US/browser/menubar.ftl -> print-shortcut= on firefox 80.06. 
+ 
+The next thing was to attach them to search engine navigation. I found that =modules/UrlbarController.jsm= deals with the bulk of search bar navigation while auxiliary features like switching search engines are handled in =chrome/browser/content/browser/search/search-one-offs.js= and =chrome/browser/content/browser/contentSearchUI.js=. 
+
+The downside is that this has to be done on every update. +Although I haven't tried, I have seen that Omni.ja files change per update according to =diff= so I don't expect copy and pasting a patched omni.ja of a previous version to work.+  I tried and copy pasting patch old omni.ja doesn't work.
+
+chrome/browser/content/browser/browser.xhtml changed on 80.0b6 (64-bit) firefox so the diffs may need to be modified per update.
+
+If you build firefox from source, you can apply the patches to firefox.
+*** Disable opening new window and printing
+patch chrome/browser/content/browser/browser.xhtml << EOF
+#+BEGIN_SRC diff
+diff --git a/browser.xhtml_orig b/browser.xhtml
+index c4920cd..f319163 100644
+--- a/browser.xhtml_orig
++++ b/browser.xhtml
+@@ -273,7 +273,7 @@ if (AppConstants.platform == "macosx") {
+     <key id="key_newNavigator"
+          data-l10n-id="window-new-shortcut"
+          command="cmd_newNavigator"
+-         modifiers="accel" reserved="true"/>
++         modifiers="alt" reserved="true"/>
+     <key id="key_newNavigatorTab" data-l10n-id="tab-new-shortcut" modifiers="accel"
+          command="cmd_newNavigatorTabNoEvent" reserved="true"/>
+     <key id="focusURLBar" data-l10n-id="location-open-shortcut" command="Browser:OpenLocation"
+@@ -293,7 +293,7 @@ if (AppConstants.platform == "macosx") {
+     <key id="key_openAddons" data-l10n-id="addons-shortcut" command="Tools:Addons" modifiers="accel,shift"/>
+     <key id="openFileKb" data-l10n-id="file-open-shortcut" command="Browser:OpenFile"  modifiers="accel"/>
+     <key id="key_savePage" data-l10n-id="save-page-shortcut" command="Browser:SavePage" modifiers="accel"/>
+-    <key id="printKb" data-l10n-id="print-shortcut" command="cmd_print"  modifiers="accel"/>
++    <key id="printKb" data-l10n-id="print-shortcut" command="cmd_print"  modifiers="alt"/>
+     <key id="key_close" data-l10n-id="close-shortcut" command="cmd_close" modifiers="accel" reserved="true"/>
+     <key id="key_closeWindow" data-l10n-id="close-shortcut" command="cmd_closeWindow" modifiers="accel,shift" reserved="true"/>
+     <key id="key_toggleMute" data-l10n-id="mute-toggle-shortcut" command="cmd_toggleMute" modifiers="control"/>
+#+END_SRC
+*** Enable going up and down inside searchbar
+patch modules/UrlbarController.jsm << EOF
+#+BEGIN_SRC diff 
+--- extract_orig/modules/UrlbarController.jsm   2010-01-01 00:00:00.000000000 -0800
++++ extract/modules/UrlbarController.jsm        2020-07-22 16:36:20.000000000 -0700
+@@ -337,6 +337,35 @@
+           event.preventDefault();
+         }
+         break;
++      case KeyEvent.DOM_VK_N:
++      case KeyEvent.DOM_VK_P:
++        if(event.ctrlKey && !event.altKey && !event.shiftKey) {
++            if (this.view.isOpen) {
++                if (executeAction) {
++                    //this.userSelectionBehavior = "emacs";
++                    this.view.selectBy(
++                            1,
++                        {
++                            reverse:
++                            event.keyCode == KeyEvent.DOM_VK_P,
++                        }
++                    );
++                }
++            } else {
++                if (this.keyEventMovesCaret(event)) {
++                    break;
++                }
++                if (executeAction) {
++                    //this.userSelectionBehavior = "emacs";
++                    this.input.startQuery({
++                        searchString: this.input.value,
++                        event,
++                    });
++                }
++            }
++            event.preventDefault();
++        }
++        break;
+       case KeyEvent.DOM_VK_DOWN:
+       case KeyEvent.DOM_VK_UP:
+       case KeyEvent.DOM_VK_PAGE_DOWN:
+#+END_SRC
+*** script
+:PROPERTIES:
+:ID:       55a39a48-cd08-4f5d-bfa5-3622f7d91d48
+:END:
+the following is a script that can does the above.
+need to modify the main variables highlighted in the script to use the script.
+#+begin_src bash
+# need to these variables before using script
+backup=true
+firefoxType="firefox-developer-edition"
+backupOmniLocation="~/org-data/23/bf5056-ded7-4a8e-8c00-c6a924208c17/omni.ja"
+
+# setup stuff and get started
+backupOmniLocation="${backupOmniLocation/#\~/$HOME}" #replaces ~ with ${HOME}
+omniPath="/usr/lib/${firefoxType}/browser/omni.ja" 
+tempdir=$(mktemp -d)
+mkdir "$tempdir/extract"
+cd "$tempdir/extract"
+
+#unzip /usr/lib/firefox/browser/omni.ja
+unzip ${omniPath}; 
+
+# apply patches
+set +e
+patch chrome/browser/content/browser/browser.xhtml << EOF
+diff --git a/browser.xhtml_orig b/browser.xhtml
+index c4920cd..f319163 100644
+--- a/browser.xhtml_orig
++++ b/browser.xhtml
+@@ -273,7 +273,7 @@ if (AppConstants.platform == "macosx") {
+     <key id="key_newNavigator"
+          data-l10n-id="window-new-shortcut"
+          command="cmd_newNavigator"
+-         modifiers="accel" reserved="true"/>
++         modifiers="alt" reserved="true"/>
+     <key id="key_newNavigatorTab" data-l10n-id="tab-new-shortcut" modifiers="accel"
+          command="cmd_newNavigatorTabNoEvent" reserved="true"/>
+     <key id="focusURLBar" data-l10n-id="location-open-shortcut" command="Browser:OpenLocation"
+@@ -293,7 +293,7 @@ if (AppConstants.platform == "macosx") {
+     <key id="key_openAddons" data-l10n-id="addons-shortcut" command="Tools:Addons" modifiers="accel,shift"/>
+     <key id="openFileKb" data-l10n-id="file-open-shortcut" command="Browser:OpenFile"  modifiers="accel"/>
+     <key id="key_savePage" data-l10n-id="save-page-shortcut" command="Browser:SavePage" modifiers="accel"/>
+-    <key id="printKb" data-l10n-id="print-shortcut" command="cmd_print"  modifiers="accel"/>
++    <key id="printKb" data-l10n-id="print-shortcut" command="cmd_print"  modifiers="alt"/>
+     <key id="key_close" data-l10n-id="close-shortcut" command="cmd_close" modifiers="accel" reserved="true"/>
+     <key id="key_closeWindow" data-l10n-id="close-shortcut" command="cmd_closeWindow" modifiers="accel,shift" reserved="true"/>
+     <key id="key_toggleMute" data-l10n-id="mute-toggle-shortcut" command="cmd_toggleMute" modifiers="control"/>
+EOF
+if [ "$?" -ne 0 ]; then
+  echo >&2 "Unexpected exit code from first patch"
+  exit 1
+fi
+patch  modules/UrlbarController.jsm << EOF
+--- extract_orig/modules/UrlbarController.jsm   2010-01-01 00:00:00.000000000 -0800
++++ extract/modules/UrlbarController.jsm        2020-07-22 16:36:20.000000000 -0700
+@@ -337,6 +337,35 @@
+           event.preventDefault();
+         }
+         break;
++      case KeyEvent.DOM_VK_N:
++      case KeyEvent.DOM_VK_P:
++        if(event.ctrlKey && !event.altKey && !event.shiftKey) {
++            if (this.view.isOpen) {
++                if (executeAction) {
++                    //this.userSelectionBehavior = "emacs";
++                    this.view.selectBy(
++                            1,
++                        {
++                            reverse:
++                            event.keyCode == KeyEvent.DOM_VK_P,
++                        }
++                    );
++                }
++            } else {
++                if (this.keyEventMovesCaret(event)) {
++                    break;
++                }
++                if (executeAction) {
++                    //this.userSelectionBehavior = "emacs";
++                    this.input.startQuery({
++                        searchString: this.input.value,
++                        event,
++                    });
++                }
++            }
++            event.preventDefault();
++        }
++        break;
+       case KeyEvent.DOM_VK_DOWN:
+       case KeyEvent.DOM_VK_UP:
+       case KeyEvent.DOM_VK_PAGE_DOWN:
+EOF
+if [ "$?" -ne 0 ]; then
+  echo >&2 "Unexpected exit code from second patch"
+  exit 1
+fi
+set -e
+
+# zip back omni.ja
+zip -qr9XD ../omni.ja *
+
+#do backup if told
+if [ "${backup}" = "true" ];then
+cat "${omniPath}" > "${backupOmniLocation}"
+fi
+
+#set new omni.ja as current omni.ja
+sudo bash -c "cat $tempdir/omni.ja > ${omniPath}"
+
+#flush cache 
+find ~/.cache/mozilla/firefox -type d -name startupCache | xargs rm -rf
+cd /
+
+rm -r "$tempdir"
+#+end_src
+** path of main setting
+/chrome/browser/content/browser/browser.xhtml
+** remap the n in C-n
+/localization/en-US/browser/browserSets.ftl:window-new-shortcut =
+** remap the p in C-p
+was menu-file-print pre 80.0b6 (64-bit) firefox
+changed to print-shortcut it seems on 80.0b6 (64-bit) firefox
+/localization/en-US/browser/menubar.ftl:print-shortcut =
+** patches
+:PROPERTIES:
+:ID:       7d943993-b4a3-4667-b1b6-97d9a1090cca
+:END:
+:RESOURCES:
+:END:
+:LOGBOOK:
+- Newly Created           [2020-08-22 Sat 02:11:32]
+:END:
+*** disable opening new window and printing
+:PROPERTIES:
+:ID:       d5c2ecd4-cd66-4133-9e8b-dc2ae01dac11
+:END:
+:RESOURCES:
+:END:
+:LOGBOOK:
+- Newly Created           [2020-08-22 Sat 02:12:17]
+:END:
+patch chrome/browser/content/browser/browser.xhtml << EOF
+#+BEGIN_SRC  diff
+diff --git a/browser.xhtml_orig b/browser.xhtml
+index c4920cd..f319163 100644
+--- a/browser.xhtml_orig
++++ b/browser.xhtml
+@@ -273,7 +273,7 @@ if (AppConstants.platform == "macosx") {
+     <key id="key_newNavigator"
+          data-l10n-id="window-new-shortcut"
+          command="cmd_newNavigator"
+-         modifiers="accel" reserved="true"/>
++         modifiers="alt" reserved="true"/>
+     <key id="key_newNavigatorTab" data-l10n-id="tab-new-shortcut" modifiers="accel"
+          command="cmd_newNavigatorTabNoEvent" reserved="true"/>
+     <key id="focusURLBar" data-l10n-id="location-open-shortcut" command="Browser:OpenLocation"
+@@ -293,7 +293,7 @@ if (AppConstants.platform == "macosx") {
+     <key id="key_openAddons" data-l10n-id="addons-shortcut" command="Tools:Addons" modifiers="accel,shift"/>
+     <key id="openFileKb" data-l10n-id="file-open-shortcut" command="Browser:OpenFile"  modifiers="accel"/>
+     <key id="key_savePage" data-l10n-id="save-page-shortcut" command="Browser:SavePage" modifiers="accel"/>
+-    <key id="printKb" data-l10n-id="print-shortcut" command="cmd_print"  modifiers="accel"/>
++    <key id="printKb" data-l10n-id="print-shortcut" command="cmd_print"  modifiers="alt"/>
+     <key id="key_close" data-l10n-id="close-shortcut" command="cmd_close" modifiers="accel" reserved="true"/>
+     <key id="key_closeWindow" data-l10n-id="close-shortcut" command="cmd_closeWindow" modifiers="accel,shift" reserved="true"/>
+     <key id="key_toggleMute" data-l10n-id="mute-toggle-shortcut" command="cmd_toggleMute" modifiers="control"/>
+#+END_SRC
+*** enable going up and down
+:PROPERTIES:
+:ID:       cddd3a40-e8d6-40c1-85dc-21aa9a90ac6b
+:END:
+:RESOURCES:
+:END:
+:LOGBOOK:
+- Newly Created           [2020-08-22 Sat 02:11:52]
+:END:
+patch modules/UrlbarController.jsm << EOF
+#+BEGIN_SRC diff 
+--- extract_orig/modules/UrlbarController.jsm   2010-01-01 00:00:00.000000000 -0800
++++ extract/modules/UrlbarController.jsm        2020-07-22 16:36:20.000000000 -0700
+@@ -337,6 +337,35 @@
+           event.preventDefault();
+         }
+         break;
++      case KeyEvent.DOM_VK_N:
++      case KeyEvent.DOM_VK_P:
++        if(event.ctrlKey && !event.altKey && !event.shiftKey) {
++            if (this.view.isOpen) {
++                if (executeAction) {
++                    //this.userSelectionBehavior = "emacs";
++                    this.view.selectBy(
++                            1,
++                        {
++                            reverse:
++                            event.keyCode == KeyEvent.DOM_VK_P,
++                        }
++                    );
++                }
++            } else {
++                if (this.keyEventMovesCaret(event)) {
++                    break;
++                }
++                if (executeAction) {
++                    //this.userSelectionBehavior = "emacs";
++                    this.input.startQuery({
++                        searchString: this.input.value,
++                        event,
++                    });
++                }
++            }
++            event.preventDefault();
++        }
++        break;
+       case KeyEvent.DOM_VK_DOWN:
+       case KeyEvent.DOM_VK_UP:
+       case KeyEvent.DOM_VK_PAGE_DOWN:
+#+END_SRC
+** more modifications
+the following can be configured to make them feel like  more like UP and Down. This means also navigate on search engines after getting to the bottom of search results.
+Only modifying /chrome/browser/content/browser/search/search-one-offs.js= is sufficient.
+- /chrome/browser/content/browser/contentSearchUI.js
+- /chrome/browser/content/browser/search/search-one-offs.js
+** improvments
+:PROPERTIES:
+:ID:       03845764-d5bb-4189-8131-8bd25bfc3445
+:END:
+:RESOURCES:
+:END:
+:LOGBOOK:
+- Newly Created           [2020-08-23 Sun 04:20:14]
+:END:
+Can grep chrome/browser/content/browser/browser.xhtml to find if window-new-shortcut or menu-file-print are still being used.
+
+for now the code attempts to look at whether patching fails and halts if so.
+#+begin_quote
+ /tmp/tmp.pYrSHZxpZv/extract]$ grep print-shortcut chrome/browser/content/browser/browser.xhtml
+    <key id="printKb" data-l10n-id="print-shortcut" command="cmd_print"  modifiers="accel"/>
+/tmp/tmp.pYrSHZxpZv/extract]$ grep window-new-shortcut chrome/browser/content/browser/browser.xhtml
+         data-l10n-id="window-new-shortcut"
+
+(the following is usless match)
+    <key id="key_undoCloseWindow" command="History:UndoCloseWindow" data-l10n-id="window-new-shortcut" modifiers="accel,shift"/>
+#+end_quote
+need to grep multiple lines for window-new-shortcut.
+
+it maybe better to grep multiple lines for key_newNavigator and printKb and then pick the first data-l10n-id="print-shortcut"/
+
+awking for linke key id prntKB, cmd_print
+awking for key_undoCloseWindow and 
+
+I do wish firefox-team made this easier than it currently is.  
+** alternative
+:PROPERTIES:
+:ID:       97a2bfad-7181-49ad-a030-ed9ff317aef8
+:END:
+:RESOURCES:
+:END:
+:LOGBOOK:
+- Newly Created           [2020-08-23 Sun 06:19:21]
+:END:
+can rebind gtk bindings by applying the following [[https://github.com/floscr/dotfiles-nix/blob/ada2adb45f2484f2147a11925608286cbdf6bfa1/modules/themes/glimpse/gtk.css#L10][code]] to =~/.config/gtk-3.0/gtk.css= as [[https://www.reddit.com/user/floscr/][floscr]] suggests.
+
+I advantage of rebinding gtk bindings is that there is no need to patch firefox on every update. Another I do want to mention that the key difference (beyond having to patch every update) between modifying omni.ja vs remapping gtk bindings is that C-n and C-p don't do anything when outside an input field. That maybe a good thing or a bad thing depending on how you look at it.
+
+I do want to mention that the key difference (beyond having to patch every update) between modifying omni.ja vs remapping gtk bindings is that C-n and C-p don't do anything when outside an input field. That maybe a good thing or a bad thing depending on how you look at it.
+
+I haven't personally tried it yet.
+
+With that said, I wouldn't have done all this if I knew I could just modify gtk.css.
+** OS
+:PROPERTIES:
+:ID:       1358e3c5-70ca-4ff5-bac3-a7c95594c84c
+:END:
+:RESOURCES:
+:END:
+:LOGBOOK:
+- Newly Created           [2020-08-23 Sun 06:47:21]
+:END:
+- linux :: This is or linux. 
+- windows :: Altough this doesn't on windows natively, the core idea can be used. 
+- OSX :: Supports this out the box.
+* Tor
+:PROPERTIES:
+:ID:       b90e8d20-482b-4035-adf1-01f0618487c3
+:END:
+:RESOURCES:
+:END:
+:LOGBOOK:
+- Newly Created           [2020-08-23 Sun 06:08:28]
+:END:
+like [[id:f82cd4db-bf8c-4593-979a-68a9a137a532][firefox mod C-n and C-p]], but instead need to change =crome/browser/content/browser/browser.xul= instead of =chrome/browser/content/browser/browser.xhtml=. =modules/UrlbarController.jsm= is still the same but [[id:5be1d56d-069d-461b-9577-60b7743d3443][startupCache]] is in =/TorBrowser/Data/Browser/profile.default/startupCache/= and =tor-browser_en-US/Browser/TorBrowser/Data/Browser/profile.default/chrome_debugger_profile/startupCache=
+
+omni.ja in =tor-browser_en-US/Browser/browser/=
+** setup 
+#+begin_src bash
+  tempdir=$(mktemp -d)
+  mkdir "$tempdir/extract"
+  cd "$tempdir/extract"
+  set +e
+  unzip ~/bin/tor-browser_en-US/Browser/browser/omni.ja
+#+end_src
+** browser xul to unmap C-n and C-p (map them to M-n and M-p)
+patch chrome/browser/content/browser/browser.xul
+#+BEGIN_SRC diff
+patch chrome/browser/content/browser/browser.xul << EOF
+271c271
+<          modifiers="accel" reserved="true"/>
+---
+>          modifiers="alt" reserved="true"/>
+285c285
+<     <key id="printKb" key="&printCmd.commandkey;" command="cmd_print"  modifiers="accel"/>
+---
+>     <key id="printKb" key="&printCmd.commandkey;" command="cmd_print"  modifiers="alt"/>
+EOF
+#+END_SRC
+** implement C-n and C-p
+the other side is the same. 
+The next thing was to attach them to search engine navigation. I found that =modules/UrlbarController.jsm= deals with the bulk of search bar navigation while auxiliary features like switching search engines are handled in =chrome/browser/content/browser/search/search-one-offs.js= and =chrome/browser/content/browser/contentSearchUI.js=. 
+
+patch with the following. 
+#+BEGIN_SRC diff 
+patch modules/UrlbarController.jsm << EOF
+--- extract_orig/modules/UrlbarController.jsm   2010-01-01 00:00:00.000000000 -0800
++++ extract/modules/UrlbarController.jsm        2020-07-22 16:36:20.000000000 -0700
+@@ -337,6 +337,35 @@
+           event.preventDefault();
+         }
+         break;
++      case KeyEvent.DOM_VK_N:
++      case KeyEvent.DOM_VK_P:
++        if(event.ctrlKey && !event.altKey && !event.shiftKey) {
++            if (this.view.isOpen) {
++                if (executeAction) {
++                    //this.userSelectionBehavior = "emacs";
++                    this.view.selectBy(
++                            1,
++                        {
++                            reverse:
++                            event.keyCode == KeyEvent.DOM_VK_P,
++                        }
++                    );
++                }
++            } else {
++                if (this.keyEventMovesCaret(event)) {
++                    break;
++                }
++                if (executeAction) {
++                    //this.userSelectionBehavior = "emacs";
++                    this.input.startQuery({
++                        searchString: this.input.value,
++                        event,
++                    });
++                }
++            }
++            event.preventDefault();
++        }
++        break;
+       case KeyEvent.DOM_VK_DOWN:
+       case KeyEvent.DOM_VK_UP:
+       case KeyEvent.DOM_VK_PAGE_DOWN:
+EOF 
+#+END_SRC
+** startupCache
+:PROPERTIES:
+:ID:       5be1d56d-069d-461b-9577-60b7743d3443
+:END:
+cache is =tor-browser_en-US/Browser/TorBrowser/Data/Browser/profile.default/startupCache= and =tor-browser_en-US/Browser/TorBrowser/Data/Browser/profile.default/chrome_debugger_profile/startupCache=
+** emacs like C-a and C-e in tor
+:PROPERTIES:
+:ID:       53541085-51a6-4a31-bff6-a2f3040fa093
+:END:
+:RESOURCES:
+:END:
+:LOGBOOK:
+- Newly Created           [2020-08-23 Sun 05:12:03]
+:END:
+I maybe able to map C-a and C-e and get them to work by modifying gtk stuff. specially settings.ini
+- =tor-browser_en-US/Browser/.config/gtk-3.0/settings.ini=
+- =tor-browser_en-US/Browser/.config/gtk-3.0/bookmarks=
+
+Turns out this is possible. add =gtk-key-theme-name=Emacs= to tor's =gtk-3.0/settings.ini= gave me what I wanted. 
+Thanks to [[https://www.reddit.com/user/floscr/][floscr]] for suggesting it.
+
