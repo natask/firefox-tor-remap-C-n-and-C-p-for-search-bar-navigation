@@ -11,24 +11,24 @@ tempdir=$(mktemp -d)
 mkdir "$tempdir/extract"
 cd "$tempdir/extract"
 
-#unzip omni.ja
-set +e
-unzip ${omniPath};
-if [ "$?" -ne 0 ]; then
-  echo >&2 "Unexpected exit code from unzip"
-  exit 1
-fi
-set -e
+#set +e
+#unzip /usr/lib/firefox/browser/omni.ja
+unzip ${omniPath}; #unzip /usr/lib/firefox/browser/omni.ja
+#if [ "$?" -ne 0 ]; then
+#  echo >&2 "Unexpected exit code from unzip"
+#  exit 1
+#fi
+#set -e
 
 
 # apply patches
 set +e
 patch chrome/browser/content/browser/browser.xhtml << EOF
-diff --git a/browser.xhtml.orig b/browser.xhtml
-index ba5cae7..8616189 100644
---- a/browser.xhtml.orig
-+++ b/browser.xhtml
-@@ -275,7 +275,7 @@ if (AppConstants.platform == "macosx") {
+diff --git a/chrome/browser/content/browser/broswer.xhtml.orig b/chrome/browser/content/browser/browser.xhtml
+index ffd3d59..ed48e55 100644
+--- a/chrome/browser/content/browser/broswer.xhtml.orig
++++ b/chrome/browser/content/browser/browser.xhtml
+@@ -270,7 +270,7 @@ if (AppConstants.platform == "macosx") {
      <key id="key_newNavigator"
           data-l10n-id="window-new-shortcut"
           command="cmd_newNavigator"
@@ -37,14 +37,15 @@ index ba5cae7..8616189 100644
      <key id="key_newNavigatorTab" data-l10n-id="tab-new-shortcut" modifiers="accel"
           command="cmd_newNavigatorTabNoEvent" reserved="true"/>
      <key id="focusURLBar" data-l10n-id="location-open-shortcut" command="Browser:OpenLocation"
-@@ -295,7 +295,7 @@ if (AppConstants.platform == "macosx") {
+@@ -290,7 +290,7 @@ if (AppConstants.platform == "macosx") {
      <key id="key_openAddons" data-l10n-id="addons-shortcut" command="Tools:Addons" modifiers="accel,shift"/>
      <key id="openFileKb" data-l10n-id="file-open-shortcut" command="Browser:OpenFile"  modifiers="accel"/>
      <key id="key_savePage" data-l10n-id="save-page-shortcut" command="Browser:SavePage" modifiers="accel"/>
--    <key id="printKb" data-l10n-id="print-shortcut" command="cmd_print_kb"  modifiers="accel"/>
-+    <key id="printKb" data-l10n-id="print-shortcut" command="cmd_print_kb"  modifiers="alt"/>
+-    <key id="printKb" data-l10n-id="print-shortcut" command="cmd_print"  modifiers="accel"/>
++    <key id="printKb" data-l10n-id="print-shortcut" command="cmd_print"  modifiers="alt"/>
      <key id="key_close" data-l10n-id="close-shortcut" command="cmd_close" modifiers="accel" reserved="true"/>
      <key id="key_closeWindow" data-l10n-id="close-shortcut" command="cmd_closeWindow" modifiers="accel,shift" reserved="true"/>
+     <key id="key_toggleMute" data-l10n-id="mute-toggle-shortcut" command="cmd_toggleMute" modifiers="control"/>
      <key id="key_toggleMute" data-l10n-id="mute-toggle-shortcut" command="cmd_toggleMute" modifiers="control"/>
 EOF
 if [ "$?" -ne 0 ]; then

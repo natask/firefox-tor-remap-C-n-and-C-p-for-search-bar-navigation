@@ -3,9 +3,11 @@ post on [[https://www.reddit.com/r/emacs/comments/iefqu2/remapping_ctrln_and_ctr
 * Table of content
 :PROPERTIES:
 :TOC:      :include all
+:ID:       1c7c4398-3022-42c1-b701-9abf78fe5abd
 :END:
 :CONTENTS:
 - [[#table-of-content][Table of content]]
+- [[#usage][Usage]]
 - [[#firefox][Firefox]]
   - [[#remapping-ctrl-n-and-ctrl-p-for-searchbar-navigation-on-firefox][remapping Ctrl-n and Ctrl-p for searchbar navigation on firefox]]
     - [[#disable-opening-new-window-and-printing][Disable opening new window and printing]]
@@ -18,8 +20,9 @@ post on [[https://www.reddit.com/r/emacs/comments/iefqu2/remapping_ctrln_and_ctr
     - [[#disable-opening-new-window-and-printing][disable opening new window and printing]]
     - [[#enable-going-up-and-down][enable going up and down]]
   - [[#more-modifications][more modifications]]
-  - [[#improvments][improvments]]
+  - [[#improvements][improvements]]
   - [[#alternative][alternative]]
+  - [[#os][OS]]
 - [[#tor][Tor]]
   - [[#setup][setup]]
   - [[#browser-xul-to-unmap-c-n-and-c-p-map-them-to-m-n-and-m-p][browser xul to unmap C-n and C-p (map them to M-n and M-p)]]
@@ -27,6 +30,20 @@ post on [[https://www.reddit.com/r/emacs/comments/iefqu2/remapping_ctrln_and_ctr
   - [[#startupcache][startupCache]]
   - [[#emacs-like-c-a-and-c-e-in-tor][emacs like C-a and C-e in tor]]
 :END:
+* Usage
+:PROPERTIES:
+:ID:       fff4eeca-0761-4f31-9599-7a39110df64d
+:END:
+:LOGBOOK:
+- Newly Created           [2021-05-30 Sun 12:17:52]
+:END:
+#+begin_src bash
+git clone https://github.com/natask/firefox-tor-remap-C-n-and-C-p-for-search-bar-navigation
+./apply_patches.sh
+#+end_src
+
+Don't depend on the patches listed in the [[#patches][patches]] section bellow. The patches in this readme maybe out of date.
+Look for the patches within [[apply_patches.sh][apply_patches.sh]].
 * Firefox
 :PROPERTIES:
 :ID:       f82cd4db-bf8c-4593-979a-68a9a137a532
@@ -263,11 +280,11 @@ changed to print-shortcut it seems on 80.0b6 (64-bit) firefox
 :END:
 patch chrome/browser/content/browser/browser.xhtml << EOF
 #+BEGIN_SRC  diff
-diff --git a/browser.xhtml_orig b/browser.xhtml
-index c4920cd..f319163 100644
---- a/browser.xhtml_orig
-+++ b/browser.xhtml
-@@ -273,7 +273,7 @@ if (AppConstants.platform == "macosx") {
+diff --git a/chrome/browser/content/browser/broswer.xhtml.orig b/chrome/browser/content/browser/browser.xhtml
+index ffd3d59..ed48e55 100644
+--- a/chrome/browser/content/browser/broswer.xhtml.orig
++++ b/chrome/browser/content/browser/browser.xhtml
+@@ -270,7 +270,7 @@ if (AppConstants.platform == "macosx") {
      <key id="key_newNavigator"
           data-l10n-id="window-new-shortcut"
           command="cmd_newNavigator"
@@ -276,7 +293,7 @@ index c4920cd..f319163 100644
      <key id="key_newNavigatorTab" data-l10n-id="tab-new-shortcut" modifiers="accel"
           command="cmd_newNavigatorTabNoEvent" reserved="true"/>
      <key id="focusURLBar" data-l10n-id="location-open-shortcut" command="Browser:OpenLocation"
-@@ -293,7 +293,7 @@ if (AppConstants.platform == "macosx") {
+@@ -290,7 +290,7 @@ if (AppConstants.platform == "macosx") {
      <key id="key_openAddons" data-l10n-id="addons-shortcut" command="Tools:Addons" modifiers="accel,shift"/>
      <key id="openFileKb" data-l10n-id="file-open-shortcut" command="Browser:OpenFile"  modifiers="accel"/>
      <key id="key_savePage" data-l10n-id="save-page-shortcut" command="Browser:SavePage" modifiers="accel"/>
@@ -285,7 +302,9 @@ index c4920cd..f319163 100644
      <key id="key_close" data-l10n-id="close-shortcut" command="cmd_close" modifiers="accel" reserved="true"/>
      <key id="key_closeWindow" data-l10n-id="close-shortcut" command="cmd_closeWindow" modifiers="accel,shift" reserved="true"/>
      <key id="key_toggleMute" data-l10n-id="mute-toggle-shortcut" command="cmd_toggleMute" modifiers="control"/>
+     <key id="key_toggleMute" data-l10n-id="mute-toggle-shortcut" command="cmd_toggleMute" modifiers="control"/>
 #+END_SRC
+EOF
 *** enable going up and down
 :PROPERTIES:
 :ID:       cddd3a40-e8d6-40c1-85dc-21aa9a90ac6b
@@ -336,12 +355,13 @@ patch modules/UrlbarController.jsm << EOF
        case KeyEvent.DOM_VK_UP:
        case KeyEvent.DOM_VK_PAGE_DOWN:
 #+END_SRC
+EOF
 ** more modifications
 the following can be configured to make them feel like  more like UP and Down. This means also navigate on search engines after getting to the bottom of search results.
 Only modifying /chrome/browser/content/browser/search/search-one-offs.js= is sufficient.
 - /chrome/browser/content/browser/contentSearchUI.js
 - /chrome/browser/content/browser/search/search-one-offs.js
-** improvments
+** improvements
 :PROPERTIES:
 :ID:       03845764-d5bb-4189-8131-8bd25bfc3445
 :END:
