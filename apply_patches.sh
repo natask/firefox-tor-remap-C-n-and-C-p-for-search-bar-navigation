@@ -52,10 +52,10 @@ if [ "$?" -ne 0 ]; then
   echo >&2 "Unexpected exit code from first patch"
   exit 1
 fi
-patch  modules/UrlbarController.jsm << EOF
---- extract_orig/modules/UrlbarController.jsm   2010-01-01 00:00:00.000000000 -0800
-+++ extract/modules/UrlbarController.jsm        2020-07-22 16:36:20.000000000 -0700
-@@ -337,6 +337,35 @@
+patch  modules/UrlbarController.sys.mjs << EOF
+--- UrlbarController.sys.mjs        2010-01-01 00:00:00.000000000 -0800
++++ UrlbarController.sys.mjs        2020-07-22 16:36:20.000000000 -0700
+@@ -360,5 +360,34 @@
            event.preventDefault();
          }
          break;
@@ -88,9 +88,8 @@ patch  modules/UrlbarController.jsm << EOF
 +            event.preventDefault();
 +        }
 +        break;
-       case KeyEvent.DOM_VK_DOWN:
-       case KeyEvent.DOM_VK_UP:
        case KeyEvent.DOM_VK_PAGE_DOWN:
+       case KeyEvent.DOM_VK_PAGE_UP:
 EOF
 if [ "$?" -ne 0 ]; then
   echo >&2 "Unexpected exit code from second patch"
